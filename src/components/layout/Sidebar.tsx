@@ -14,11 +14,35 @@ import {
   CreditCard,
   Users,
   ScrollText,
-  LifeBuoy
+  LifeBuoy,
+  Copy,
+  Lock,
+  Star,
+  Check
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { activeTab, setActiveTab, t, activeRole } = useApp();
+  const {
+    activeTab,
+    setActiveTab,
+    t,
+    activeRole,
+    workspaceKey,
+    setIsWorkspaceModalOpen,
+    isSuperAdminUnlocked,
+    setIsAuthModalOpen,
+    showToast
+  } = useApp();
+
+  const [copiedId, setCopiedId] = React.useState(false);
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(workspaceKey);
+    setCopiedId(true);
+    showToast('Workspace ID copied! Enter this on any device to resume your work.');
+    setTimeout(() => setCopiedId(false), 2000);
+  };
 
   interface NavItem {
     id: ActiveTab;
@@ -119,6 +143,54 @@ export const Sidebar: React.FC = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Workspace Identifier Widget (No Email Needed) */}
+      <div className="p-3 border-t border-slate-800/80 bg-slate-950/80 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono uppercase text-slate-400 font-bold flex items-center gap-1">
+            <KeyRound className="w-3 h-3 text-cyan-400" />
+            <span>Workspace ID</span>
+          </span>
+          <button
+            onClick={() => setIsWorkspaceModalOpen(true)}
+            className="text-[10px] text-cyan-400 hover:text-cyan-300 font-mono hover:underline"
+          >
+            Switch ID
+          </button>
+        </div>
+        <div className="flex items-center justify-between gap-1.5 p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+          <span className="font-mono text-cyan-300 font-semibold truncate text-[11px]" title={workspaceKey}>
+            {workspaceKey}
+          </span>
+          <button
+            onClick={handleCopyId}
+            className="p-1 text-slate-400 hover:text-white rounded shrink-0 transition-colors"
+            title="Copy Workspace Identifier"
+          >
+            {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {isSuperAdminUnlocked ? (
+          <div className="p-2 rounded-lg bg-gradient-to-r from-amber-950/70 to-slate-900 border border-amber-500/60 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-amber-300 font-semibold text-[11px]">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span>Super Admin Active</span>
+            </div>
+            <span className="text-[9px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800/80 px-1.5 py-0.2 rounded font-bold">
+              FREE
+            </span>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="w-full py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-850 border border-slate-800 text-[11px] text-amber-400 hover:text-amber-300 font-medium flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <Lock className="w-3 h-3" />
+            <span>Unlock Super Admin</span>
+          </button>
+        )}
       </div>
 
       {/* Footer System Status Snippet */}

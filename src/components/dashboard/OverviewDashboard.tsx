@@ -16,7 +16,12 @@ import {
   TrendingUp,
   Clock,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  KeyRound,
+  Copy,
+  Check,
+  Star,
+  Lock
 } from 'lucide-react';
 
 export const OverviewDashboard: React.FC = () => {
@@ -30,8 +35,21 @@ export const OverviewDashboard: React.FC = () => {
     deployments,
     setActiveTab,
     showToast,
-    addAuditLog
+    addAuditLog,
+    workspaceKey,
+    setIsWorkspaceModalOpen,
+    isSuperAdminUnlocked,
+    setIsAuthModalOpen
   } = useApp();
+
+  const [copiedId, setCopiedId] = React.useState(false);
+
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(workspaceKey);
+    setCopiedId(true);
+    showToast('Unique Workspace Identifier copied to clipboard! Paste it on any device to resume your work.');
+    setTimeout(() => setCopiedId(false), 2000);
+  };
 
   const handlePurgeCache = () => {
     showToast('Purging Edge Cache across 312 global Anycast PoPs...');
@@ -84,6 +102,61 @@ export const OverviewDashboard: React.FC = () => {
             <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
             <span>Purge Edge Cache</span>
           </button>
+        </div>
+      </div>
+
+      {/* Unique Workspace Identifier & Super Admin Status Banner */}
+      <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-800/80 flex items-center justify-center shrink-0">
+            <KeyRound className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-mono uppercase bg-slate-950 text-slate-400 border border-slate-800 px-2 py-0.5 rounded font-bold">
+                Unique Access ID
+              </span>
+              <span className="font-mono text-cyan-300 font-bold text-xs select-all">
+                {workspaceKey}
+              </span>
+              <button
+                onClick={handleCopyId}
+                className="px-2 py-0.5 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/60 rounded text-[11px] font-mono flex items-center gap-1 transition-colors"
+                title="Copy Identifier"
+              >
+                {copiedId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                <span>{copiedId ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              No email login needed. Save your unique ID to resume your projects, custom domains, and website builder pages from any computer, tablet, or phone.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+          <button
+            onClick={() => setIsWorkspaceModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+          >
+            Switch / Restore ID
+          </button>
+
+          {isSuperAdminUnlocked ? (
+            <div className="px-3 py-1.5 rounded-lg bg-amber-950/60 border border-amber-500/70 text-amber-300 text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span>Super Admin: 100% Free Access</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-950/80 to-slate-900 hover:from-amber-900 border border-amber-600/60 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+              title="Unlock full complimentary access with password superadminmode"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Unlock Super Admin</span>
+            </button>
+          )}
         </div>
       </div>
 

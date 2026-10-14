@@ -142,6 +142,18 @@ interface AppContextType {
   activeCheckoutPlan: { name: string; price: string; amount: number } | null;
   setActiveCheckoutPlan: (plan: { name: string; price: string; amount: number } | null) => void;
 
+  // Anonymous Unique Workspace Identifiers & Super Admin Security
+  workspaceKey: string;
+  restoreWorkspaceByKey: (key: string) => boolean;
+  generateNewWorkspaceKey: () => string;
+  isSuperAdminUnlocked: boolean;
+  unlockSuperAdmin: (password: string) => boolean;
+  lockSuperAdmin: () => void;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  isWorkspaceModalOpen: boolean;
+  setIsWorkspaceModalOpen: (open: boolean) => void;
+
   // Notification Toast
   toastMessage: string | null;
   showToast: (msg: string) => void;
@@ -152,7 +164,27 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>('en');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [activeRole, setActiveRole] = useState<UserRole>('super_admin');
+
+  // Super Admin Authentication & Workspace Key State
+  const [isSuperAdminUnlocked, setIsSuperAdminUnlocked] = useState<boolean>(() => {
+    return localStorage.getItem('aether_superadmin_auth') === 'true';
+  });
+
+  const [workspaceKey, setWorkspaceKey] = useState<string>(() => {
+    const existing = localStorage.getItem('aether_workspace_key');
+    if (existing) return existing;
+    const generated = 'ath_usr_' + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem('aether_workspace_key', generated);
+    return generated;
+  });
+
+  const [activeRole, setActiveRole] = useState<UserRole>(() => {
+    const isSuper = localStorage.getItem('aether_superadmin_auth') === 'true';
+    return isSuper ? 'super_admin' : 'editor';
+  });
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -164,13 +196,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const t = translations[language] || translations.en;
 
+  const unlockSuperAdmin = (password: string): boolean => {
+    if (password.trim().toLowerCase() === 'superadminmode') {
+      setIsSuperAdminUnlocked(true);
+      setActiveRole('super_admin');
+      localStorage.setItem('aether_superadmin_auth', 'true');
+      setIsAuthModalOpen(false);
+      setIsWorkspaceModalOpen(false);
+      confetti({ particleCount: 85, spread: 90, origin: { y: 0.6 } });
+      showToast('⭐ Super Admin Mode Unlocked! Complete Free Access Activated (Password: superadminmode).');
+      return true;
+    } else {
+      showToast('Access Denied: Incorrect Super Admin Password.');
+      return false;
+    }
+  };
+
+  const lockSuperAdmin = () => {
+    setIsSuperAdminUnlocked(false);
+    setActiveRole('editor');
+    localStorage.removeItem('aether_superadmin_auth');
+    showToast('Super Admin locked. You are now in standard tenant workspace view.');
+  };
+
+  const restoreWorkspaceByKey = (key: string): boolean => {
+    const cleanKey = key.trim();
+    if (!cleanKey) return false;
+
+    // Check if user entered superadminmode in the workspace key field
+    if (cleanKey.toLowerCase() === 'superadminmode') {
+      unlockSuperAdmin('superadminmode');
+      return true;
+    }
+
+    setWorkspaceKey(cleanKey);
+    localStorage.setItem('aether_workspace_key', cleanKey);
+    setIsWorkspaceModalOpen(false);
+
+    try {
+      const savedRaw = localStorage.getItem('aether_ws_data_' + cleanKey);
+      if (savedRaw) {
+        const saved = JSON.parse(savedRaw);
+        if (saved.projects && Array.isArray(saved.projects)) {
+          setProjects(saved.projects);
+          const found = saved.projects.find((p: Project) => p.id === saved.activeProjectId);
+          setActiveProject(found || saved.projects[0]);
+        }
+        if (saved.builderPage) {
+          setBuilderPage(saved.builderPage);
+        }
+        if (saved.domains && Array.isArray(saved.domains)) {
+          setDomains(saved.domains);
+        }
+        if (saved.backups && Array.isArray(saved.backups)) {
+          setBackups(saved.backups);
+        }
+        if (saved.envVars && Array.isArray(saved.envVars)) {
+          setEnvVars(saved.envVars);
+        }
+        confetti({ particleCount: 50, spread: 60 });
+        showToast(`Workspace "${cleanKey}" restored! Projects and designs loaded.`);
+        return true;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    confetti({ particleCount: 35, spread: 50 });
+    showToast(`Workspace "${cleanKey}" activated! Ready to build and deploy.`);
+    return true;
+  };
+
+  const generateNewWorkspaceKey = (): string => {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let rand = '';
+    for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    rand += '-';
+    for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    const newKey = 'AETH-' + rand;
+    setWorkspaceKey(newKey);
+    localStorage.setItem('aether_workspace_key', newKey);
+    showToast(`New unique workspace key: ${newKey} (Saved! Copy to switch devices).`);
+    return newKey;
+  };
+
   const currentUser: UserProfile = {
-    id: 'usr_enterprise_01',
-    name: 'Alex Rivera',
-    email: 'alex.rivera@enterprise-aether.io',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
+    id: isSuperAdminUnlocked ? 'usr_superadmin_master' : workspaceKey,
+    name: isSuperAdminUnlocked ? 'Super Admin (Master)' : `Workspace User (${workspaceKey.slice(0, 11)})`,
+    email: isSuperAdminUnlocked ? 'superadmin@aetherhost.internal' : `${workspaceKey}@aether-tenant.local`,
+    avatar: isSuperAdminUnlocked
+      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80'
+      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
     role: activeRole,
-    team: 'Global Infrastructure Core'
+    team: isSuperAdminUnlocked ? 'Global Infrastructure Core (Master)' : 'Tenant Workspace'
   };
 
   const [projects, setProjects] = useState<Project[]>([
@@ -1245,32 +1363,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const initiatePaystackPayment = (amount: number, description: string, email?: string) => {
     const customer = email || currentUser.email;
-    const ref = 'pstk_live_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    showToast(`Initializing Paystack Live Checkout (${paystackConfig.currency} ${amount})...`);
+    const isFreeSuperAdmin = isSuperAdminUnlocked;
+    const finalAmount = isFreeSuperAdmin ? 0 : amount;
+    const ref = (isFreeSuperAdmin ? 'pstk_free_superadmin_' : 'pstk_live_') + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    
+    if (isFreeSuperAdmin) {
+      showToast(`⭐ Super Admin Exemption: Activating ${description} at $0.00 (Free of Charge)...`);
+    } else {
+      showToast(`Initializing Paystack Live Checkout (${paystackConfig.currency} ${amount})...`);
+    }
 
     // Simulate Paystack Live Handshake with Callback & Webhook Dispatch
     setTimeout(() => {
       const newTx: PaystackTransaction = {
         id: 'pstk_tx_' + Date.now(),
         reference: ref,
-        amount,
+        amount: finalAmount,
         currency: paystackConfig.currency,
         customerEmail: customer,
-        channel: 'card',
+        channel: isFreeSuperAdmin ? 'super_admin_exemption' as any : 'card',
         status: 'success',
         paidAt: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
-        planOrDescription: description,
+        planOrDescription: isFreeSuperAdmin ? `${description} (Super Admin Free Tier)` : description,
         callbackUrl: paystackConfig.callbackUrl,
-        verifiedSignature: 'sha512_' + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
+        verifiedSignature: isFreeSuperAdmin ? 'sha512_superadmin_root_verified' : 'sha512_' + Math.random().toString(36).substring(2)
       };
 
       setPaystackTransactions(prev => [newTx, ...prev]);
       setIsPaystackModalOpen(false);
       confetti({ particleCount: 65, spread: 70, origin: { y: 0.6 } });
-      showToast(`Payment of ${paystackConfig.currency} ${amount} verified via Paystack! Webhook delivered to ${paystackConfig.webhookUrl}`);
-      addAuditLog(`Paystack Charge Succeeded (Ref: ${ref}, Amount: ${paystackConfig.currency} ${amount})`, 'billing', ref);
-    }, 1800);
+      if (isFreeSuperAdmin) {
+        showToast(`⭐ Super Admin Benefit applied: Plan active with $0.00 zero-cost settlement!`);
+        addAuditLog(`Super Admin Free Plan Provisioned (${description})`, 'billing', ref);
+      } else {
+        showToast(`Payment of ${paystackConfig.currency} ${amount} verified via Paystack! Webhook delivered to ${paystackConfig.webhookUrl}`);
+        addAuditLog(`Paystack Charge Succeeded (Ref: ${ref}, Amount: ${paystackConfig.currency} ${amount})`, 'billing', ref);
+      }
+    }, 1200);
   };
+
+  // Cross-device persistence: Automatically save workspace changes under the user's Unique Identifier
+  useEffect(() => {
+    if (!workspaceKey) return;
+    try {
+      const bundle = {
+        projects,
+        activeProjectId: activeProject?.id,
+        builderPage,
+        domains,
+        backups,
+        envVars
+      };
+      localStorage.setItem('aether_ws_data_' + workspaceKey, JSON.stringify(bundle));
+    } catch (e) {
+      // quota fallback
+    }
+  }, [workspaceKey, projects, activeProject, builderPage, domains, backups, envVars]);
 
   const addEnvVar = (key: string, value: string, targets: ('production' | 'preview' | 'development')[]) => {
     if (activeRole !== 'super_admin' && activeRole !== 'devops') {
@@ -1598,6 +1746,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsPaystackModalOpen,
         activeCheckoutPlan,
         setActiveCheckoutPlan,
+
+        // Workspace Key & Super Admin Security
+        workspaceKey,
+        restoreWorkspaceByKey,
+        generateNewWorkspaceKey,
+        isSuperAdminUnlocked,
+        unlockSuperAdmin,
+        lockSuperAdmin,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        isWorkspaceModalOpen,
+        setIsWorkspaceModalOpen,
 
         toastMessage,
         showToast

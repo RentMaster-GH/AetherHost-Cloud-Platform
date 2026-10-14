@@ -22,7 +22,8 @@ import {
   ShieldCheck,
   Send,
   Star,
-  Quote
+  Quote,
+  KeyRound
 } from 'lucide-react';
 import { BlockType, BuilderBlock } from '../../types';
 
@@ -39,7 +40,10 @@ export const WebsiteBuilder: React.FC = () => {
     setIsPreviewModalOpen,
     builderDeviceMode,
     setBuilderDeviceMode,
-    showToast
+    showToast,
+    workspaceKey,
+    isSuperAdminUnlocked,
+    setIsWorkspaceModalOpen
   } = useApp();
 
   const [selectedBlockId, setSelectedBlockId] = useState<string>(builderPage.blocks[1]?.id || builderPage.blocks[0]?.id || '');
@@ -69,6 +73,25 @@ export const WebsiteBuilder: React.FC = () => {
           <p className="text-xs text-slate-400">
             {t.builderSubtitle}
           </p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+              <KeyRound className="w-3 h-3 text-cyan-400" />
+              <span>Workspace ID: <strong className="text-cyan-300 font-bold">{workspaceKey}</strong></span>
+              <span className="text-emerald-400">· Auto-saved</span>
+            </span>
+            <button
+              onClick={() => setIsWorkspaceModalOpen(true)}
+              className="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-mono"
+            >
+              Switch Device / ID
+            </button>
+            {isSuperAdminUnlocked && (
+              <span className="text-[10px] font-mono bg-amber-950 text-amber-300 border border-amber-800/80 px-2 py-0.5 rounded flex items-center gap-1">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                <span>Super Admin: Unlimited Free Cloud Deploy</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Center: Device Switcher */}

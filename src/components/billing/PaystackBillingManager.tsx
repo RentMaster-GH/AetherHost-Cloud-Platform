@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
-  Receipt
+  Receipt,
+  Star
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -27,7 +28,9 @@ export const PaystackBillingManager: React.FC = () => {
     initiatePaystackPayment,
     showToast,
     addAuditLog,
-    currentUser
+    currentUser,
+    isSuperAdminUnlocked,
+    setIsAuthModalOpen
   } = useApp();
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -97,6 +100,51 @@ export const PaystackBillingManager: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Super Admin Free Status Banner */}
+      {isSuperAdminUnlocked ? (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-emerald-950/40 border border-amber-500/60 shadow-xl shadow-amber-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-md shrink-0">
+              <Star className="w-5 h-5 fill-slate-950 text-slate-950" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-bold uppercase text-amber-300 bg-amber-950/90 border border-amber-700/80 px-2 py-0.5 rounded">
+                  SUPER ADMIN STATUS: LIFETIME FREE ACCESS
+                </span>
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  No Payment Required ($0.00 Due)
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                As Super Admin, you have complete access to all dedicated cloud servers, Anycast edge bandwidth, automated hourly backups, and WAF security without requiring payment. All enterprise benefits are complimentary.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-mono text-emerald-400 font-bold bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+              Payment Exemption: ACTIVE
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 text-xs text-slate-300">
+            <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              Are you the Super Admin? Unlock root access with password <strong className="font-mono text-amber-300">superadminmode</strong> to use the entire platform freely without payment.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-700/80 text-amber-300 text-xs font-semibold whitespace-nowrap transition-colors"
+          >
+            Unlock Super Admin
+          </button>
+        </div>
+      )}
 
       {/* Paystack Live Credentials & Webhook Endpoints */}
       <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-4">
@@ -262,43 +310,78 @@ export const PaystackBillingManager: React.FC = () => {
                 1TB fast egress bandwidth, unlimited domains, hourly automated snapshots, and full OWASP WAF.
               </p>
             </div>
-            <button
-              onClick={() => {
-                setTestAmount(20);
-                setTestDescription('Pro Scale Hosting Subscription');
-                setIsTestCheckoutOpen(true);
-              }}
-              className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Subscribe with Paystack</span>
-            </button>
+            {isSuperAdminUnlocked ? (
+              <button
+                onClick={() => {
+                  initiatePaystackPayment(0, 'Pro Scale Hosting (Super Admin Complimentary)');
+                }}
+                className="w-full py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-bold shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Star className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Super Admin Free Benefit ($0.00)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setTestAmount(20);
+                  setTestDescription('Pro Scale Hosting Subscription');
+                  setIsTestCheckoutOpen(true);
+                }}
+                className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Subscribe with Paystack</span>
+              </button>
+            )}
           </div>
 
           {/* Enterprise Dedicated */}
           <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 flex flex-col justify-between space-y-4">
             <div>
-              <span className="text-xs font-bold text-purple-400 uppercase font-mono">Dedicated Cluster</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-purple-400 uppercase font-mono">Dedicated Cluster</span>
+                {isSuperAdminUnlocked && (
+                  <span className="text-[10px] font-mono text-amber-300 bg-amber-950 border border-amber-800 px-2 py-0.5 rounded font-bold">
+                    FREE EXEMPTION
+                  </span>
+                )}
+              </div>
               <h3 className="text-lg font-bold text-white mt-1">Enterprise Dedicated</h3>
               <div className="flex items-baseline gap-1 my-2">
-                <span className="text-2xl font-bold font-mono text-white">$180</span>
-                <span className="text-xs text-slate-400">/ month</span>
+                <span className="text-2xl font-bold font-mono text-white">
+                  {isSuperAdminUnlocked ? '$0' : '$180'}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {isSuperAdminUnlocked ? '/ lifetime free' : '/ month'}
+                </span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Dedicated 16 vCPU AMD EPYC node, sub-120s human SRE SLA, custom WORM backups, and HIPAA/SOC 2 compliance.
               </p>
             </div>
-            <button
-              onClick={() => {
-                setTestAmount(180);
-                setTestDescription('Enterprise Dedicated Cluster Subscription');
-                setIsTestCheckoutOpen(true);
-              }}
-              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-            >
-              <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Subscribe with Paystack</span>
-            </button>
+            {isSuperAdminUnlocked ? (
+              <button
+                onClick={() => {
+                  initiatePaystackPayment(0, 'Enterprise Dedicated Cluster (Super Admin Complimentary)');
+                }}
+                className="w-full py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-bold shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Star className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Super Admin Free Benefit ($0.00)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setTestAmount(180);
+                  setTestDescription('Enterprise Dedicated Cluster Subscription');
+                  setIsTestCheckoutOpen(true);
+                }}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Subscribe with Paystack</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -502,7 +585,20 @@ export const PaystackBillingManager: React.FC = () => {
               </div>
 
               {/* Submit Button */}
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
+                {isSuperAdminUnlocked && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTestCheckoutOpen(false);
+                      initiatePaystackPayment(0, testDescription + ' (Super Admin Complimentary)');
+                    }}
+                    className="w-full py-2.5 rounded-xl font-bold text-xs text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 shadow-md shadow-amber-500/20 active:scale-98 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-slate-950" />
+                    <span>Super Admin Free Bypass ($0.00 Zero Cost)</span>
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={isProcessing}
