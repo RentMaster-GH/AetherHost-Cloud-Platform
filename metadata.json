@@ -1,0 +1,6 @@
+{
+  "name": "AetherHost Cloud Platform",
+  "description": "Enterprise cloud webhosting console with drag-and-drop site builder, real-time telemetry, automated backups, DNS management, threat detection, and 24/7 live support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
