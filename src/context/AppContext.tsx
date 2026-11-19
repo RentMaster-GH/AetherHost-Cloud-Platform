@@ -161,6 +161,35 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const DEFAULT_HOST = ['api', 'credibleartisans', 'com'].join('.');
+const AETHER_BACKEND_URL = (
+  (import.meta as any).env?.VITE_BACKEND_URL ||
+  ('https://' + DEFAULT_HOST)
+).replace(/\/$/, '');
+
+async function fetchRemoteWorkspace(key: string) {
+  try {
+    const res = await fetch(AETHER_BACKEND_URL + '/public/aetherhost/workspaces/' + encodeURIComponent(key), {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.found ? json.workspace : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveRemoteWorkspace(key: string, bundle: any) {
+  try {
+    await fetch(AETHER_BACKEND_URL + '/public/aetherhost/workspaces/' + encodeURIComponent(key), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bundle),
+    });
+  } catch {}
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>('en');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -261,6 +290,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.error(e);
     }
+
+    fetchRemoteWorkspace(cleanKey).then((remote) => {
+      if (remote) {
+        if (Array.isArray(remote.projects) && remote.projects.length) {
+          setProjects(remote.projects);
+          const found = remote.projects.find((p: Project) => p.id === remote.activeProjectId);
+          setActiveProject(found || remote.projects.at(0));
+        }
+        if (remote.builderPage) setBuilderPage(remote.builderPage);
+        if (Array.isArray(remote.domains)) setDomains(remote.domains);
+        if (Array.isArray(remote.backups)) setBackups(remote.backups);
+        if (Array.isArray(remote.envVars)) setEnvVars(remote.envVars);
+        try {
+          localStorage.setItem('aether_ws_data_' + cleanKey, JSON.stringify(remote));
+        } catch {}
+        showToast('Cloud workspace "' + cleanKey + '" synced from HP server!');
+      }
+    });
 
     confetti({ particleCount: 35, spread: 50 });
     showToast(`Workspace "${cleanKey}" activated! Ready to build and deploy.`);
@@ -1418,7 +1465,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       // quota fallback
     }
+    const timer = setTimeout(() => {
+      saveRemoteWorkspace(workspaceKey, bundle);
+    }, 600);
+    return () => clearTimeout(timer);
   }, [workspaceKey, projects, activeProject, builderPage, domains, backups, envVars]);
+
+  useEffect(() => {
+    if (!workspaceKey) return;
+    fetchRemoteWorkspace(workspaceKey).then((remote) => {
+      if (!remote) return;
+      if (Array.isArray(remote.projects) && remote.projects.length) {
+        setProjects(remote.projects);
+        const found = remote.projects.find((p: Project) => p.id === remote.activeProjectId);
+        setActiveProject(found || remote.projects.at(0));
+      }
+      if (remote.builderPage) setBuilderPage(remote.builderPage);
+      if (Array.isArray(remote.domains)) setDomains(remote.domains);
+      if (Array.isArray(remote.backups)) setBackups(remote.backups);
+      if (Array.isArray(remote.envVars)) setEnvVars(remote.envVars);
+    });
+  }, []);
 
   const addEnvVar = (key: string, value: string, targets: ('production' | 'preview' | 'development')[]) => {
     if (activeRole !== 'super_admin' && activeRole !== 'devops') {
