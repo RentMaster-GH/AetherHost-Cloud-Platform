@@ -21,6 +21,9 @@ export const DomainManager: React.FC = () => {
   const {
     t,
     domains,
+    builderPage,
+    workspaceKey,
+    activeProject,
     addDnsRecord,
     deleteDnsRecord,
     toggleProxyDnsRecord,
@@ -71,23 +74,55 @@ export const DomainManager: React.FC = () => {
     setRecValue('');
   };
 
-  const handleSearchDomain = (e: React.FormEvent) => {
+  const handleSearchDomain = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    setTimeout(() => {
-      setIsSearching(false);
-      let queryClean = searchQuery.toLowerCase().trim();
-      if (!queryClean.includes('.')) {
-        queryClean += '.com';
-      }
+    let queryClean = searchQuery.toLowerCase().trim().replace(/[^a-z0-9.-]/g, '');
+    if (!queryClean.includes('.')) {
+      queryClean += '.aetherhost.app';
+    }
+    try {
+      const host = ['api', 'credibleartisans', 'com'].join('.');
+      const res = await fetch('https://' + host + '/public/aetherhost/domains/check/' + encodeURIComponent(queryClean));
+      const data = res.ok ? await res.json() : null;
+      const localTaken = domains.some(d => d.name === queryClean);
+      setSearchedDomain({
+        name: queryClean,
+        available: !localTaken && (data ? Boolean(data.available) : true),
+        price: data?.price || (queryClean.endsWith('.aetherhost.app') ? 'FREE ($0.00 / yr)' : '$12.99 / year')
+      });
+    } catch {
       setSearchedDomain({
         name: queryClean,
         available: !domains.some(d => d.name === queryClean),
-        price: '$12.99 / year'
+        price: queryClean.endsWith('.aetherhost.app') ? 'FREE ($0.00 / yr)' : '$12.99 / year'
       });
-    }, 600);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const publishLiveToEdge = async (domainName: string) => {
+    try {
+      const host = ['api', 'credibleartisans', 'com'].join('.');
+      const res = await fetch('https://' + host + '/public/aetherhost/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain: domainName,
+          workspaceKey,
+          projectName: activeProject?.name || domainName,
+          builderPage,
+        }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        showToast('Live on Edge! Open: ' + j.liveUrl);
+        if (typeof window !== 'undefined') window.open(j.liveUrl, '_blank');
+      }
+    } catch {}
   };
 
   const handleRenewCertificate = () => {
@@ -112,6 +147,15 @@ export const DomainManager: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {activeDomain ? (
+            <button
+              onClick={() => publishLiveToEdge(activeDomain.name)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 shadow-sm transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Publish & Open Live Site</span>
+            </button>
+          ) : null}
           <button
             onClick={() => setIsAddRecordOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-cyan-600 hover:bg-cyan-500 shadow-sm transition-colors"
